@@ -18,7 +18,7 @@ public class ipc_connect : MonoBehaviour
 
     // Start is called before the first frame update
     void Start() {  
-          connectToServer();
+        //   connectToServer();
     }
 
     // Update is called once per frame
@@ -26,18 +26,27 @@ public class ipc_connect : MonoBehaviour
         // this.ReadFromPipe();
     }
 
-    void connectToServer() {
-        try {  			
-			clientReceiveThread = new Thread (new ThreadStart(listenForData)); 			
+    public void connectToServer(out String receivedData) {
+        try {  	
+            String value = null;
+			clientReceiveThread = new Thread(() => {
+                listenForData(out value);
+            }); 			
 			clientReceiveThread.IsBackground = true; 			
-			clientReceiveThread.Start();  		
+			clientReceiveThread.Start(); 
+            
+ 	
+            receivedData = value;
+            Debug.Log("client message received as: " + receivedData); 	
+
 		} 		
 		catch (Exception e) { 			
-			Debug.Log("On client connect exception " + e); 		
+			Debug.Log("On client connect exception " + e);
+            receivedData = null; 	
 		}
     }
 
-    void listenForData() {
+    public void listenForData(out String value) {
         IPAddress ipAddress = IPAddress.Parse("127.0.0.1");
         int port = 1234;
 
@@ -61,14 +70,15 @@ public class ipc_connect : MonoBehaviour
 							Array.Copy(buffer, 0, incommingData, 0, length);  							
 							// Convert byte array to string message. 							
 							string clientMessage = Encoding.ASCII.GetString(incommingData); 							
-							Debug.Log("client message received as: " + clientMessage); 						
+							// Debug.Log("client message received as: " + clientMessage); 	
+                            value = clientMessage;
 						} 
                     }
                 }
             }
-            
         } catch (SocketException socketException) { 			
-			Debug.Log("SocketException " + socketException.ToString()); 		
+			Debug.Log("SocketException " + socketException.ToString()); 
 		}   
+        value = "";
     }
 }
