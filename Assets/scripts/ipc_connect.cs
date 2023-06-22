@@ -8,45 +8,38 @@ using System.Text;
 using System.Threading;
 using System;
 
-public class ipc_connect : MonoBehaviour
-{
+public class ipc_connect : MonoBehaviour {
     TcpListener listener;
     TcpClient client;
     NetworkStream stream;
     private Thread clientReceiveThread; 	
     byte[] buffer;
 
+    private Queue<int> bufferQueue = new Queue<int>();
+
     // Start is called before the first frame update
     void Start() {  
-        //   connectToServer();
+        for(int i = 0; i < 5; i++) {
+            addToBuffer(bufferQueue, 0);
+        }
     }
 
     // Update is called once per frame
     void Update() {
-        // this.ReadFromPipe();
     }
 
-    public void connectToServer(out String receivedData) {
+    public void connectToServer() {
         try {  	
-            String value = null;
-			clientReceiveThread = new Thread(() => {
-                listenForData(out value);
-            }); 			
+			clientReceiveThread = new Thread(new ThreadStart(listenForData)); 			
 			clientReceiveThread.IsBackground = true; 			
 			clientReceiveThread.Start(); 
-            
- 	
-            receivedData = value;
-            Debug.Log("client message received as: " + receivedData); 	
-
 		} 		
 		catch (Exception e) { 			
 			Debug.Log("On client connect exception " + e);
-            receivedData = null; 	
 		}
     }
 
-    public void listenForData(out String value) {
+    public void listenForData() {
         IPAddress ipAddress = IPAddress.Parse("127.0.0.1");
         int port = 1234;
 
@@ -68,10 +61,11 @@ public class ipc_connect : MonoBehaviour
                         while ((length = stream.Read(buffer, 0, buffer.Length)) != 0) { 							
 							var incommingData = new byte[length]; 							
 							Array.Copy(buffer, 0, incommingData, 0, length);  							
-							// Convert byte array to string message. 							
+							
+                            // Convert byte array to string message. 							
 							string clientMessage = Encoding.ASCII.GetString(incommingData); 							
 							// Debug.Log("client message received as: " + clientMessage); 	
-                            value = clientMessage;
+                            addToBuffer(bufferQueue, int.Parse(clientMessage));
 						} 
                     }
                 }
@@ -79,6 +73,19 @@ public class ipc_connect : MonoBehaviour
         } catch (SocketException socketException) { 			
 			Debug.Log("SocketException " + socketException.ToString()); 
 		}   
-        value = "";
+    }
+
+    void addToBuffer(Queue<int> queue, int value) {
+        if (queue.Count >= 5) {
+            queue.Dequeue();
+        }
+        queue.Enqueue(value);
+
+        //Print buffer contents
+        String consolePrintBuffer = "";
+        foreach (var item in queue){
+            consolePrintBuffer += " " + item;
+        }
+        UnityEngine.Debug.Log(consolePrintBuffer);
     }
 }
