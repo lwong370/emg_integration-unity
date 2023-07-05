@@ -7,18 +7,23 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System;
+using data;
+using System.Linq;
 
 public class ipc_connect : MonoBehaviour {
+    
     TcpListener listener;
     TcpClient client;
     NetworkStream stream;
-    private Thread clientReceiveThread; 	
+    private Thread clientReceiveThread; 
+    private csv_writer writer;	
+    private int currMajority;
     byte[] buffer;
 
     private Queue<int> bufferQueue = new Queue<int>();
 
     // Start is called before the first frame update
-    void Start() {  
+    void Start() { 
         for(int i = 0; i < 5; i++) {
             addToBuffer(bufferQueue, 0);
         }
@@ -44,6 +49,7 @@ public class ipc_connect : MonoBehaviour {
         int port = 1234;
 
         listener = new TcpListener(ipAddress, port);
+        writer = new csv_writer(); 
 
         try{
             listener.Start();
@@ -66,6 +72,11 @@ public class ipc_connect : MonoBehaviour {
 							string clientMessage = Encoding.ASCII.GetString(incommingData); 							
 							// Debug.Log("client message received as: " + clientMessage); 	
                             addToBuffer(bufferQueue, int.Parse(clientMessage));
+                            Queue<int> tempQueue = bufferQueue;
+                            currMajority = calculateMode(tempQueue);
+                            DataPoint dataValue = new DataPoint(DateTime.Now.ToString(), calculateMode(tempQueue));
+                            writer.writeCSV(dataValue);
+                            UnityEngine.Debug.Log("time stamp: " + dataValue.timeStamp + ", majority: " + dataValue.majority); 	
 						} 
                     }
                 }
@@ -75,7 +86,7 @@ public class ipc_connect : MonoBehaviour {
 		}   
     }
 
-    void addToBuffer(Queue<int> queue, int value) {
+    private void addToBuffer(Queue<int> queue, int value) {
         if (queue.Count >= 5) {
             queue.Dequeue();
         }
@@ -86,6 +97,28 @@ public class ipc_connect : MonoBehaviour {
         foreach (var item in queue){
             consolePrintBuffer += " " + item;
         }
-        UnityEngine.Debug.Log(consolePrintBuffer);
+        UnityEngine.Debug.Log("queue is: " + consolePrintBuffer); 	
+    }
+
+    private int calculateMode(Queue<int> queue) {
+        Dictionary<int, int> frequencyMap = new Dictionary<int, int>();
+
+        Queue<int> tempQueue = new Queue<int>(queue);
+
+        while (tempQueue.Count > 0)
+        {
+            int currentNumber = tempQueue.Dequeue();
+            if (frequencyMap.ContainsKey(currentNumber))
+                frequencyMap[currentNumber]++;
+            else
+                frequencyMap[currentNumber] = 1;
+        }
+
+        int mode = frequencyMap.OrderByDescending(kv => kv.Value).First().Key;
+        return mode;
+    }
+
+    public int getCurrentMajority() {
+        return currMajority;
     }
 }
